@@ -6,6 +6,7 @@ from sentence_transformers import SentenceTransformer
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 from streamlit_agraph import agraph, Node, Edge, Config
 import warnings
+import os
 
 # Set the page title
 st.set_page_config(page_title="Echo")
@@ -38,15 +39,43 @@ Echo is a prototype of a Retrieval-Augmented Generation (RAG) system designed to
 https://www.linkedin.com/in/dantebarross/
 ''')
 
-# Load data and index
-@st.cache_data
-def load_data():
-    data = pd.read_csv('mock_data.csv')
-    embeddings = np.load('embeddings.npy')
-    index = faiss.read_index('vector.index')
-    return data, embeddings, index
+# File Upload for mock_data.csv
+st.sidebar.header("Upload New Data")
+uploaded_file = st.sidebar.file_uploader("Upload a CSV file", type=["csv"])
 
-data, embeddings, index = load_data()
+# Process uploaded file and re-build vector database
+if uploaded_file:
+    # Save uploaded file to 'mock_data.csv'
+    with open("mock_data.csv", "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    st.sidebar.success("New data uploaded! Rebuilding vector database...")
+
+    # Function to generate embeddings and build FAISS index
+    def build_vector_db():
+        data = pd.read_csv("mock_data.csv")
+        embedder = SentenceTransformer("all-MiniLM-L6-v2")
+        embeddings = embedder.encode(data['text'].tolist())
+
+        # Save embeddings and build FAISS index
+        np.save("embeddings.npy", embeddings)
+        dimension = embeddings.shape[1]
+        index = faiss.IndexFlatL2(dimension)
+        index.add(embeddings)
+        faiss.write_index(index, "vector.index")
+        return data, embeddings, index
+
+    # Build the vector database
+    data, embeddings, index = build_vector_db()
+else:
+    # Load existing data and embeddings
+    @st.cache_data
+    def load_data():
+        data = pd.read_csv('mock_data.csv')
+        embeddings = np.load('embeddings.npy')
+        index = faiss.read_index('vector.index')
+        return data, embeddings, index
+
+    data, embeddings, index = load_data()
 
 # Load models
 @st.cache_resource
@@ -60,7 +89,7 @@ embedder, tokenizer, model = load_models()
 
 # User input
 st.header('Enter Your Query:')
-query = st.text_input('Query', placeholder='Type your question here...', label_visibility='collapsed')
+query = st.text_input('Query', placeholder='Type your question here (e.g. "How to reset my password?")', label_visibility='collapsed')
 
 if query:
     try:
@@ -187,8 +216,8 @@ if query:
 
         # Adjust the config for better readability
         config = Config(
-            width=1200,
-            height=800,
+            width=800,
+            height=300,
             directed=True,
             nodeHighlightBehavior=True,
             highlightColor="#F7A7A6",
