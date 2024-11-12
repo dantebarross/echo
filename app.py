@@ -41,7 +41,7 @@ https://www.linkedin.com/in/dantebarross/
 
 # Check if embeddings and FAISS index files exist
 def check_files():
-    return os.path.exists("mock_data.csv") and os.path.exists("embeddings.npy") and os.path.exists("vector.index")
+    return os.path.exists("embeddings.npy") and os.path.exists("vector.index")
 
 # Function to create embeddings and build FAISS index if files are missing
 def build_vector_db():
@@ -49,6 +49,8 @@ def build_vector_db():
     if not os.path.exists("mock_data.csv"):
         st.warning("Please upload a CSV file named 'mock_data.csv' to continue.")
         return None, None, None
+    
+    # Generate embeddings and FAISS index
     data = pd.read_csv("mock_data.csv")
     embedder = SentenceTransformer("all-MiniLM-L6-v2")
     embeddings = embedder.encode(data['text'].tolist())
@@ -61,21 +63,26 @@ def build_vector_db():
     faiss.write_index(index, "vector.index")
     return data, embeddings, index
 
-# Load data and index if files exist, else build them
-if check_files():
-    @st.cache_data
-    def load_data():
-        data = pd.read_csv('mock_data.csv')
-        embeddings = np.load('embeddings.npy')
-        index = faiss.read_index('vector.index')
-        return data, embeddings, index
-    data, embeddings, index = load_data()
-else:
-    # If files are missing, run build_vector_db to initialize them
-    st.info("Setting up the vector database. This may take a few moments.")
+# File uploader to upload mock_data.csv
+uploaded_file = st.file_uploader("Upload mock_data.csv", type="csv")
+if uploaded_file:
+    with open("mock_data.csv", "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    st.success("Uploaded successfully. Generating embeddings and index...")
     data, embeddings, index = build_vector_db()
-    if data is None:
-        st.stop()  # Stop the app if the CSV is not uploaded
+else:
+    # Check if files exist or trigger build if they don't
+    if check_files():
+        @st.cache_data
+        def load_data():
+            data = pd.read_csv('mock_data.csv')
+            embeddings = np.load('embeddings.npy')
+            index = faiss.read_index('vector.index')
+            return data, embeddings, index
+        data, embeddings, index = load_data()
+    else:
+        st.warning("Upload a CSV file named 'mock_data.csv' to initialize the application.")
+        st.stop()
 
 # Load models
 @st.cache_resource
