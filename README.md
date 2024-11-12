@@ -1,8 +1,8 @@
-# RAG Prototype Demo
+# Echo
 
 ## Overview
 
-The RAG Prototype Demo is a proof-of-concept Retrieval-Augmented Generation (RAG) system designed to assist support agents in retrieving contextually relevant information and generating accurate responses based on a user’s query. This system uses a vector-based retrieval mechanism for document matching combined with a language model for generating responses, providing a streamlined experience for accessing support information.
+Echo is a proof-of-concept Retrieval-Augmented Generation (RAG) system designed to assist support agents in retrieving contextually relevant information and generating accurate responses based on a user’s query. This system uses a vector-based retrieval mechanism for document matching combined with a language model for generating responses, providing a streamlined experience for accessing support information.
 
 ## Architecture
 
