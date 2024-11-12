@@ -1,12 +1,12 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import os
 import faiss
 from sentence_transformers import SentenceTransformer
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 from streamlit_agraph import agraph, Node, Edge, Config
 import warnings
-import os
 
 # Set the page title
 st.set_page_config(page_title="Echo")
@@ -39,43 +39,53 @@ Echo is a prototype of a Retrieval-Augmented Generation (RAG) system designed to
 https://www.linkedin.com/in/dantebarross/
 ''')
 
-# File Upload for mock_data.csv
-st.sidebar.header("Upload New Data")
-uploaded_file = st.sidebar.file_uploader("Upload a CSV file", type=["csv"])
+# Check if embeddings.npy and vector.index exist, otherwise run the vector DB setup
+def check_files():
+    return os.path.exists("mock_data.csv") and os.path.exists("embeddings.npy") and os.path.exists("vector.index")
 
-# Process uploaded file and re-build vector database
-if uploaded_file:
-    # Save uploaded file to 'mock_data.csv'
-    with open("mock_data.csv", "wb") as f:
-        f.write(uploaded_file.getbuffer())
-    st.sidebar.success("New data uploaded! Rebuilding vector database...")
+# Function to create embeddings and build FAISS index
+def build_vector_db():
+    data = pd.read_csv("mock_data.csv")
+    embedder = SentenceTransformer("all-MiniLM-L6-v2")
+    embeddings = embedder.encode(data['text'].tolist())
 
-    # Function to generate embeddings and build FAISS index
-    def build_vector_db():
-        data = pd.read_csv("mock_data.csv")
-        embedder = SentenceTransformer("all-MiniLM-L6-v2")
-        embeddings = embedder.encode(data['text'].tolist())
+    # Save embeddings and build FAISS index
+    np.save("embeddings.npy", embeddings)
+    dimension = embeddings.shape[1]
+    index = faiss.IndexFlatL2(dimension)
+    index.add(embeddings)
+    faiss.write_index(index, "vector.index")
+    return data, embeddings, index
 
-        # Save embeddings and build FAISS index
-        np.save("embeddings.npy", embeddings)
-        dimension = embeddings.shape[1]
-        index = faiss.IndexFlatL2(dimension)
-        index.add(embeddings)
-        faiss.write_index(index, "vector.index")
-        return data, embeddings, index
-
-    # Build the vector database
-    data, embeddings, index = build_vector_db()
-else:
-    # Load existing data and embeddings
+# Load data and index if files exist, else build them
+if check_files():
     @st.cache_data
     def load_data():
         data = pd.read_csv('mock_data.csv')
         embeddings = np.load('embeddings.npy')
         index = faiss.read_index('vector.index')
         return data, embeddings, index
-
     data, embeddings, index = load_data()
+else:
+    # If files are missing, prompt to upload mock_data.csv to build the index
+    st.warning("Required data files are missing. Please upload 'mock_data.csv' to initialize the vector database.")
+    uploaded_file = st.sidebar.file_uploader("Upload a CSV file", type=["csv"])
+    if uploaded_file:
+        with open("mock_data.csv", "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        st.success("File uploaded! Building vector database...")
+        data, embeddings, index = build_vector_db()
+
+# Proceed with the rest of your code, e.g., loading models and processing queries
+# Load models
+@st.cache_resource
+def load_models():
+    embedder = SentenceTransformer('all-MiniLM-L6-v2')
+    tokenizer = T5Tokenizer.from_pretrained('t5-base', legacy=False)
+    model = T5ForConditionalGeneration.from_pretrained('google/flan-t5-base')
+    return embedder, tokenizer, model
+
+embedder, tokenizer, model = load_models()
 
 # Load models
 @st.cache_resource
