@@ -86,7 +86,7 @@ embedder, tokenizer, model = load_models()
 
 # User input
 st.header('Enter Your Query:')
-query = st.text_input('Query', placeholder='Type your question here...', label_visibility='collapsed')
+query = st.text_input('Query', placeholder='Type your question here (e.g. "How to reset my password?")', label_visibility='collapsed')
 
 if query:
     try:
