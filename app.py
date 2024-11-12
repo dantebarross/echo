@@ -39,11 +39,11 @@ Echo is a prototype of a Retrieval-Augmented Generation (RAG) system designed to
 https://www.linkedin.com/in/dantebarross/
 ''')
 
-# Check if embeddings.npy and vector.index exist, otherwise run the vector DB setup
+# Check if embeddings and FAISS index files exist
 def check_files():
-    return os.path.exists("mock_data.csv") and os.path.exists("embeddings.npy") and os.path.exists("vector.index")
+    return os.path.exists("embeddings.npy") and os.path.exists("vector.index")
 
-# Function to create embeddings and build FAISS index
+# Function to create embeddings and build FAISS index if files are missing
 def build_vector_db():
     data = pd.read_csv("mock_data.csv")
     embedder = SentenceTransformer("all-MiniLM-L6-v2")
@@ -76,17 +76,6 @@ else:
         st.success("File uploaded! Building vector database...")
         data, embeddings, index = build_vector_db()
 
-# Proceed with the rest of your code, e.g., loading models and processing queries
-# Load models
-@st.cache_resource
-def load_models():
-    embedder = SentenceTransformer('all-MiniLM-L6-v2')
-    tokenizer = T5Tokenizer.from_pretrained('t5-base', legacy=False)
-    model = T5ForConditionalGeneration.from_pretrained('google/flan-t5-base')
-    return embedder, tokenizer, model
-
-embedder, tokenizer, model = load_models()
-
 # Load models
 @st.cache_resource
 def load_models():
@@ -99,7 +88,7 @@ embedder, tokenizer, model = load_models()
 
 # User input
 st.header('Enter Your Query:')
-query = st.text_input('Query', placeholder='Type your question here (e.g. "How to reset my password?")', label_visibility='collapsed')
+query = st.text_input('Query', placeholder='Type your question here...', label_visibility='collapsed')
 
 if query:
     try:
@@ -226,8 +215,8 @@ if query:
 
         # Adjust the config for better readability
         config = Config(
-            width=800,
-            height=300,
+            width=1200,
+            height=800,
             directed=True,
             nodeHighlightBehavior=True,
             highlightColor="#F7A7A6",
