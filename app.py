@@ -6,14 +6,9 @@ import faiss
 from sentence_transformers import SentenceTransformer
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 from streamlit_agraph import agraph, Node, Edge, Config
-import warnings
 
 # Set the page title
 st.set_page_config(page_title="Echo")
-
-# Suppress specific warnings from PyTorch and Transformers
-warnings.filterwarnings("ignore", message="Examining the path of torch.classes")
-warnings.filterwarnings("ignore", message="`do_sample` is set to `False`")
 
 # Title
 st.title('Echo')
@@ -190,9 +185,6 @@ if query:
                 with st.expander(f"Document {idx+1}"):
                     st.write(doc)
 
-        # Application Flow Diagram
-        st.subheader('Application Flow Diagram')
-
         # Define sub-nodes for detailed flow representation
         nodes = [
             Node(id="User_Input", label="User Input", shape="box", color="lightblue"),
@@ -216,21 +208,24 @@ if query:
             Edge(source="App", target="User_Display", label="Display Answer"),
         ]
 
-        # Adjust the config for better readability
+        # Adjust the config for better readability and centering
         config = Config(
-            width=1200,
-            height=800,
+            width=600,
+            height=400,
             directed=True,
             nodeHighlightBehavior=True,
             highlightColor="#F7A7A6",
             collapsible=True,
-            nodeDistanceMultiplier=2.5,  # Adjust distance between nodes
+            center=True,  # Center the graph in the display space
+            nodeDistanceMultiplier=5,  # Adjust distance between nodes
             linkDistance=350,  # Increase space for links
             edgeLabelPosition='middle',  # Center edge labels
             edgeFontSize=12,  # Font size for edges
             edgeFontColor='#333333'  # Dark color for contrast
         )
-        
+
+        # Display the Application Flow Diagram in full width
+        st.subheader('Application Flow Diagram')
         agraph(nodes=nodes, edges=edges, config=config)
 
     except Exception as e:
