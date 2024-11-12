@@ -39,11 +39,7 @@ Echo is a prototype of a Retrieval-Augmented Generation (RAG) system designed to
 https://www.linkedin.com/in/dantebarross/
 ''')
 
-# Check if embeddings and FAISS index files exist
-def check_files():
-    return os.path.exists("embeddings.npy") and os.path.exists("vector.index")
-
-# Function to create embeddings and build FAISS index if files are missing
+# Function to create embeddings and build FAISS index
 def build_vector_db():
     # Check if the mock data file exists
     if not os.path.exists("mock_data.csv"):
@@ -63,26 +59,25 @@ def build_vector_db():
     faiss.write_index(index, "vector.index")
     return data, embeddings, index
 
-# File uploader to upload mock_data.csv
+# Execute the build function or allow file upload if data is missing
+if os.path.exists("mock_data.csv") and os.path.exists("embeddings.npy") and os.path.exists("vector.index"):
+    # Load pre-existing files
+    data = pd.read_csv("mock_data.csv")
+    embeddings = np.load("embeddings.npy")
+    index = faiss.read_index("vector.index")
+else:
+    # Build from scratch if files are missing
+    data, embeddings, index = build_vector_db()
+
+# File uploader to upload mock_data.csv if missing
 uploaded_file = st.file_uploader("Upload mock_data.csv", type="csv")
 if uploaded_file:
     with open("mock_data.csv", "wb") as f:
         f.write(uploaded_file.getbuffer())
     st.success("Uploaded successfully. Generating embeddings and index...")
     data, embeddings, index = build_vector_db()
-else:
-    # Check if files exist or trigger build if they don't
-    if check_files():
-        @st.cache_data
-        def load_data():
-            data = pd.read_csv('mock_data.csv')
-            embeddings = np.load('embeddings.npy')
-            index = faiss.read_index('vector.index')
-            return data, embeddings, index
-        data, embeddings, index = load_data()
-    else:
-        st.warning("Upload a CSV file named 'mock_data.csv' to initialize the application.")
-        st.stop()
+elif data is None:
+    st.stop()  # Stop execution if data is still missing
 
 # Load models
 @st.cache_resource
