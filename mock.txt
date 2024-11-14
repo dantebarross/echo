@@ -1,0 +1,54 @@
+From: john.doe@example.com
+To: support@company.com
+Subject: Password reset issues
+Date: 2024-10-01
+
+Hi Support Team,
+
+I'm unable to reset my password using the "Forgot Password" feature. It keeps showing an error. Please help.
+
+Thanks,
+John Doe
+---
+
+From: support@company.com
+To: john.doe@example.com
+Subject: Re: Password reset issues
+Date: 2024-10-02
+
+Hi John,
+
+Thank you for reaching out. Can you please try the following steps:
+1. Clear your browser cache.
+2. Use a different browser or device.
+
+Let us know if the issue persists.
+
+Best regards,
+Support Team
+---
+
+From: jane.smith@example.com
+To: support@company.com
+Subject: Order not delivered
+Date: 2024-10-03
+
+Hello,
+
+I placed an order (#12345) two weeks ago, but it still hasn't been delivered. Can you provide an update?
+
+Thanks,
+Jane Smith
+---
+
+From: support@company.com
+To: jane.smith@example.com
+Subject: Re: Order not delivered
+Date: 2024-10-04
+
+Hi Jane,
+
+We apologize for the inconvenience. Our records show that the order is in transit and should arrive within the next 3 days. We’ll keep you updated.
+
+Best regards,
+Support Team
