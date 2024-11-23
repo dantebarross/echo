@@ -1,5 +1,9 @@
 # app.py
 
+import sys
+import pysqlite3
+sys.modules['sqlite3'] = pysqlite3
+
 import streamlit as st
 from modules.file_handler import handle_file_upload
 from modules.vector_store import split_documents, create_vector_store
