@@ -5,6 +5,9 @@ env/
 venv/
 myenv/
 
+# Ignore envorironment variables
+.env
+
 # Ignore Python cache files
 __pycache__/
 *.py[cod]
