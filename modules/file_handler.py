@@ -1,5 +1,3 @@
-# modules/file_handler.py
-
 from langchain.schema import Document
 import streamlit as st
 from modules.utils import update_console

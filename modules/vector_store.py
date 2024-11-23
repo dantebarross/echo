@@ -1,7 +1,5 @@
-# modules/vector_store.py
-
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
+from langchain.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from modules.constants import CHUNK_SIZE, CHUNK_OVERLAP, EMBEDDING_MODEL
 from modules.utils import update_console
@@ -26,8 +24,10 @@ def create_vector_store(texts):
     try:
         embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
         vector_store = Chroma.from_documents(
-            texts, embeddings, collection_name="uploaded_docs"
+            texts, embeddings, collection_name="uploaded_docs",
+            persist_directory="./chroma_db"  # Ensure local persistence
         )
+        vector_store.persist()  # Save the database
         update_console("Vector store created successfully.")
         return vector_store
     except Exception as e:
