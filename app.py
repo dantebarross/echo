@@ -1,111 +1,121 @@
+import os
 import streamlit as st
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
+from langchain.schema import Document
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.vectorstores import Chroma
+from langchain.embeddings import HuggingFaceEmbeddings
+from huggingface_hub import InferenceClient
 import numpy as np
-import logging
 
-# Set up logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
-logger = logging.getLogger(__name__)
+# Constants
+MAX_FILE_SIZE_MB = 5
+CLUSTER_THRESHOLD = 0.7  # Similarity threshold for clustering
+SAFE_RESPONSE_LIMIT = 2000  # Safe character limit for responses
+MAX_NEW_TOKENS = 250  # Hugging Face limit
 
-# Set the page title
-st.set_page_config(page_title="Echo RAG", layout="wide")
+# Initialize session state for console
+if "console" not in st.session_state:
+    st.session_state.console = ""
 
-# Title
-st.title("Echo RAG")
+# Function to update the console
+def update_console(message):
+    """Update the console with new messages."""
+    st.session_state.console += f"{message}\n"
 
-# Sidebar
+# Set up Streamlit app
+st.set_page_config(page_title="LangChain RAG System", layout="wide")
+st.title("LangChain-powered RAG System with Clustering")
 st.sidebar.header("Settings")
-similarity_threshold = st.sidebar.slider(
-    "Similarity Threshold", 0.0, 1.0, 0.5, step=0.05
-)
+
 st.sidebar.info(
     """
-This is a simplified RAG system using sentence-transformers and sklearn for document retrieval.
+    This app demonstrates a Retrieval-Augmented Generation (RAG) pipeline with clustering for better responses.
 
-**Powered by:** Sentence-Transformers
-"""
+    **Powered by:** LangChain, Hugging Face, and ChromaDB.
+    """
 )
 
-@st.cache_resource
-def load_embedder():
-    logger.info("Loading Sentence Transformer model...")
-    embedder = SentenceTransformer("all-MiniLM-L6-v2")
-    logger.info("Model loaded successfully.")
-    return embedder
-
-
-embedder = load_embedder()
-
-# Session state for uploaded documents and embeddings
-if "documents" not in st.session_state:
-    st.session_state["documents"] = None
-if "embeddings" not in st.session_state:
-    st.session_state["embeddings"] = None
-
+# File upload section
 uploaded_file = st.file_uploader("Upload a text file (.txt)", type=["txt"])
 if uploaded_file:
-    # Delimiter selection
-    delimiter_option = st.selectbox(
-        "Select a delimiter to split the text into documents:",
-        ["Linebreak (default)", "Comma", "Final Dots (Periods)", "Custom"],
-    )
-    if delimiter_option == "Linebreak (default)":
-        delimiter = "\n\n"
-    elif delimiter_option == "Comma":
-        delimiter = ","
-    elif delimiter_option == "Final Dots (Periods)":
-        delimiter = "."
-    else:  # Custom
-        delimiter = st.text_input("Enter your custom delimiter:", value="")
-
-    if delimiter and st.button("Process File"):
+    if len(uploaded_file.getvalue()) > MAX_FILE_SIZE_MB * 1024 * 1024:
+        st.error("File too large! Please upload a file smaller than 5MB.")
+    else:
+        update_console("File loaded successfully!")
         try:
-            # Read and normalize the uploaded file content
-            text_data = uploaded_file.read().decode("utf-8")
-            text_data = text_data.replace("\r\n", "\n").replace("\r", "\n")  # Normalize line breaks
-
-            # Split documents
-            documents = [doc.strip() for doc in text_data.split(delimiter) if doc.strip()]
-            logger.info(f"Split into {len(documents)} documents using delimiter: '{delimiter}'")
-
-            # Generate embeddings
-            embeddings = embedder.encode(documents, convert_to_tensor=False)
-            
-            st.session_state["documents"] = documents
-            st.session_state["embeddings"] = embeddings
-            st.success(f"File successfully processed into {len(documents)} documents!")
-            logger.info("Documents processed and embeddings generated.")
+            file_content = uploaded_file.getvalue().decode("utf-8")
+            documents = [Document(page_content=file_content)]
         except Exception as e:
-            st.error(f"Failed to process file: {e}")
-            logger.error(f"Error: {e}")
+            st.error(f"Error loading file: {e}")
+            update_console(f"Error loading file: {e}")
 
-# Query processing
-if st.session_state["documents"] is not None:
-    st.header("Enter Your Query:")
-    query = st.text_input("Query", placeholder="Type your question here...")
-    if query:
+        update_console("Splitting documents into chunks...")
         try:
-            logger.info(f"Processing query: {query}")
-
-            # Embed the query and ensure proper shape
-            query_embedding = np.array(embedder.encode([query], convert_to_tensor=False)).reshape(1, -1)
-            document_embeddings = np.array(st.session_state["embeddings"])
-
-            # Compute similarities
-            similarities = cosine_similarity(query_embedding, document_embeddings)[0]
-            relevant_indices = [i for i, score in enumerate(similarities) if score >= similarity_threshold]
-            relevant_docs = [(st.session_state["documents"][i], similarities[i]) for i in relevant_indices]
-
-            # Display retrieved documents
-            st.subheader("Retrieved Relevant Documents:")
-            if relevant_docs:
-                for idx, (doc, score) in enumerate(relevant_docs):
-                    st.write(f"Document {idx+1} (Score: {score:.4f}):")
-                    st.write(doc)
-                    logger.info(f"Document {idx+1}: {doc} (Score: {score:.4f})")
-            else:
-                st.warning("No documents matched the similarity threshold.")
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,
+                chunk_overlap=200,
+                separators=["From:", "Subject:", "\n\n", "\n", "."]
+            )
+            texts = text_splitter.split_documents(documents)
+            update_console(f"Text successfully split into {len(texts)} chunks!")
         except Exception as e:
-            st.error(f"Failed to process query: {e}")
-            logger.error(f"Query error: {e}")
+            st.error(f"Error splitting text: {e}")
+            update_console(f"Error splitting text: {e}")
+
+        update_console("Generating embeddings and storing in Chroma...")
+        try:
+            embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+            store = Chroma.from_documents(
+                texts,
+                embeddings,
+                collection_name="uploaded_docs"
+            )
+            update_console("Embeddings generated and stored in Chroma!")
+        except Exception as e:
+            st.error(f"Error generating embeddings: {e}")
+            update_console(f"Error generating embeddings: {e}")
+
+        # Query Section
+        query = st.text_input("Enter your query:", placeholder="Type your question here...")
+        if query:
+            try:
+                update_console(f"Processing query: {query}")
+                retriever = store.as_retriever(search_type="similarity", search_kwargs={"k": 5})
+                retrieved_docs = retriever.get_relevant_documents(query)
+
+                # Aggregate context from retrieved documents
+                context = "\n\n".join(doc.page_content for doc in retrieved_docs)
+                formatted_query = (
+                    f"Based on the following context:\n"
+                    f"{context}\n\n"
+                    f"Question: {query}\n\n"
+                    f"Provide a detailed and actionable answer."
+                )
+
+                # Use InferenceClient for LLM
+                client = InferenceClient(model="google/flan-t5-large", token="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")
+                response = client.text_generation(
+                    formatted_query,
+                    max_new_tokens=MAX_NEW_TOKENS
+                )
+
+                # Ensure a complete response
+                if len(response) > SAFE_RESPONSE_LIMIT:
+                    response = response[:SAFE_RESPONSE_LIMIT] + "... (truncated)"
+
+                update_console("Query processed successfully!")
+                st.subheader("Answer:")
+                st.write(response)
+
+            except Exception as e:
+                st.error(f"Error processing query: {e}")
+                update_console(f"Error processing query: {e}")
+
+# Render the console area
+st.text_area(
+    "Console",
+    value=st.session_state.console,
+    height=100,  # Smaller height (4 lines approx)
+    key="console",
+    disabled=True,  # Prevent user edits
+)
