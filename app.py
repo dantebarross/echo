@@ -1,6 +1,4 @@
-import sys
-import pysqlite3
-sys.modules['sqlite3'] = pysqlite3
+# app.py
 
 import streamlit as st
 from modules.file_handler import handle_file_upload
@@ -26,10 +24,7 @@ if uploaded_file:
         try:
             # Process uploaded file
             texts = split_documents(documents)
-            vector_store = create_vector_store(texts)
-            retriever = vector_store.as_retriever(
-                search_type="mmr", search_kwargs={"k": 10, "lambda_mult": 0.7}
-            )
+            vector_store, retriever = create_vector_store(texts)
             update_console(f"Text successfully split into {len(texts)} chunks.")
         except Exception as e:
             st.error(f"Error processing file: {e}")
